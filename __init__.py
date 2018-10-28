@@ -19,12 +19,11 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# version comment: V0.0.3 main branch - Wobble/Late Parent Fixes
-
+# version comment: V2.0.0 main branch - Simulated bones are now in the same armature
 bl_info = {
     "name": "RigFlex",
     "author": "Ian Huish (nerk)",
-    "version": (0, 0, 0),
+    "version": (2, 0, 0),
     "blender": (2, 79, 0),
     "location": "Toolshelf>RigFlex",
     "description": "Quick Soft Body Simulation for Armatures",
