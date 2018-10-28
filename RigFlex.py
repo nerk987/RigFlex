@@ -19,7 +19,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# version comment: V0.0.3 main branch - Wobble/Late Parent Fixes
+# version comment: V2.0.0 main branch - Simulated bones are now in the same armature
 
 import bpy
 import mathutils,  math, os
