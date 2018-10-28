@@ -19,13 +19,13 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# version comment: V0.0.2 main branch - Object location fix
+# version comment: V0.0.3 main branch - Wobble/Late Parent Fixes
 
 bl_info = {
     "name": "RigFlex",
     "author": "Ian Huish (nerk)",
     "version": (0, 0, 0),
-    "blender": (2, 78, 0),
+    "blender": (2, 79, 0),
     "location": "Toolshelf>RigFlex",
     "description": "Quick Soft Body Simulation for Armatures",
     "warning": "",
@@ -54,18 +54,39 @@ class SBSimMainProps(bpy.types.PropertyGroup):
     sbsim_start_frame = IntProperty(name="Simulation Start Frame", default=1)  
     sbsim_end_frame = IntProperty(name="Simulation End Frame", default=250)  
     sbsim_stiffness = FloatProperty(name="stiffness", default=0.5)  
+    sbsim_bonelayer = IntProperty(name="Bone Layer", default=24)  
     
 
 
 
 class ARMATURE_OT_SBSim_Copy(bpy.types.Operator):
-    """Create a new armature for simulation"""
-    bl_label = "Copy"
+    """Create a new bone layer for soft body simulation"""
+    bl_label = "Initialize"
     bl_idname = "armature.sbsim_copy"
     bl_options = {'REGISTER', 'UNDO'}
     
+    #update the vertex groups on any associated object
+    def UpdateVertexGroups(self, context, targetRig):
+        #Get a list of vertex group names to change
+        ChangeGroups = []
+        for b in targetRig.pose.bones:
+            if b.name[-5:] == "_flex":
+                ChangeGroups.append(b.name[:-5])
+                print("ChangeGroups add: ", b.name[:-5])
+        for o in context.scene.objects:
+            ArmMod = False
+            for mod in o.modifiers:
+                if mod.type == 'ARMATURE' and mod.object is not None:
+                    if mod.object.name == targetRig.name:
+                        print("Object found: ", o.name)
+                        ArmMod = True
+            for vg in o.vertex_groups:
+                if vg.name in ChangeGroups:
+                    vg.name = vg.name + "_flex"
+            
+    
 
-    #Copy the Source rig to a new armature    
+    #Create a new bone layer for soft body simulation    
     def execute(self, context):
         #Get the object
         pFSM = context.scene.SBSimMainProps
@@ -73,88 +94,73 @@ class ARMATURE_OT_SBSim_Copy(bpy.types.Operator):
         selected_bones = []
         if context.selected_pose_bones is not None:
             for b in context.selected_pose_bones:
-                selected_bones.append(b)
+                print("Selected", b.name)
+                selected_bones.append(b.name)
         if TargetRig.type != "ARMATURE":
             print("Not an Armature", context.object.type)
             return  {'FINISHED'}
-        SimRig = TargetRig.copy()
-        SimRig.name = TargetRig.name + "_sbsim"
-        SimRig.data = TargetRig.data.copy()
-        SimRig.data.name = TargetRig.data.name + "_sbsim"
-        context.scene.objects.link(SimRig)
-        TargetRig["SBSim"] = SimRig.name
-        SimRig["SBSource"] = TargetRig.name
-        if "SBSim" in SimRig:
-            del SimRig["SBSim"]
+        TargetRig["SBSim"] = "True"
             
         #Add a copy Transforms constraint at the object level
         
-            
         #delete all non-deform bones
-        rig = SimRig.data
-        context.scene.objects.active = SimRig
+        rig = TargetRig.data
+        # context.scene.objects.active = SimRig
         OrigMode = context.mode
         bpy.ops.object.mode_set(mode='EDIT')
-        #delete constraints
-        for b in SimRig.pose.bones:
-            for c in b.constraints:
-                b.constraints.remove(c)
-                
-        #remove parents that aren't deform bones
+        
+        #Duplicate each selected bone in Edit mode
         for b in rig.edit_bones:
-            if b.parent is not None:
-                if not b.parent.use_deform:
-                    b.parent = None
-        
-        for b in rig.edit_bones:
-            if not b.use_deform:
-                rig.edit_bones.remove(b)
-        
-        # Remove animation data
-        bpy.ops.object.mode_set(mode=OrigMode)
-        if SimRig.animation_data is not None:
-            SimRig.animation_data.action = None
-        
-        # #Hide the active layer
-        # SimRig.data.layers[1] = True
-        # SimRig.data.layers[0] = False
-        
-        #Add copy transforms constraint to all bones with no parent
-        crco = SimRig.constraints.new('COPY_TRANSFORMS')
-        crco.target = TargetRig
-        
-        #Delete any unnecessary constraints
-        for b in SimRig.pose.bones:
-            for c in b.constraints:
-                b.constraints.remove(c)
+            print("EditBone", b.name)
+            if b.name in selected_bones:
+                bsim = rig.edit_bones.new(b.name + "_flex")
+                print("New Bone", bsim.name)
+                bsim.head = b.head
+                bsim.tail = b.tail
+                bsim.matrix = b.matrix
+                bsim.parent = b.parent
 
-        for b in SimRig.pose.bones:
-            SourceBone = TargetRig.pose.bones.get(b.name)
-            if SourceBone is not None:
-                if SourceBone not in selected_bones:
-                    # print("SourceBone not Selected", b.name)
-                    crc = b.constraints.new('COPY_TRANSFORMS')
-                    crc.target = TargetRig
-                    crc.subtarget = SourceBone.name
-                    # print("CRC Sub:", crc.subtarget)
-                    b["Stiffness"] = 1.0
-                elif b.parent is None:
-                    # print("SourceBone no Parent", b.name)
-                    b["Stiffness"] = pFSM.sbsim_stiffness
-                    crc = b.constraints.new('COPY_LOCATION')
-                    crc.target = TargetRig
-                    crc.subtarget = SourceBone.name
-                else:
-                    # print("SourceBone Selected", b.name)
-                    b["Stiffness"] = pFSM.sbsim_stiffness
-                    
+        #Connect the parents of new bones to each other and set correct layer
+        for b in rig.edit_bones:
+            if b.name[-5:] == "_flex":
+                if b.parent is not None:
+                    print("BoneIDEdit", b.parent.name)
+                    if b.parent.name + "_flex" in rig.edit_bones:
+                        b.parent = rig.edit_bones.get(b.parent.name + "_flex", None)
+                        print("BoneParentAdd", b.parent.name)
+                    else:
+                        b.parent = None
+                b.layers[pFSM.sbsim_bonelayer] = True
+                # b.layers[0] = False
+                print("Layer0", b.layers[0])
+                for i in range(31):
+                    if i != pFSM.sbsim_bonelayer:
+                        b.layers[i] = False
+
+                
+        #Return from Edit mode
+        bpy.ops.object.mode_set(mode=OrigMode)
+               
+        #Fix up the parents
         
+        
+
+        for b in TargetRig.pose.bones:
+            print("BoneIDPose", b.name[-5:])
+            if b.name[-5:] == "_flex":
+                b["Stiffness"] = pFSM.sbsim_stiffness
+                crc = b.constraints.new('COPY_TRANSFORMS')
+                crc.target = TargetRig
+                crc.subtarget = b.name[:-5]
+        
+        #Update any associated vertex groups
+        self.UpdateVertexGroups(context, TargetRig)
         
         return {'FINISHED'}
 
 
 class ARMATURE_OT_SBSim_Update(bpy.types.Operator):
-    """Update the armature settings"""
+    """Update the stiffness settings for selected bones"""
     bl_label = "Update"
     bl_idname = "armature.sbsim_update"
     bl_options = {'REGISTER', 'UNDO'}
@@ -164,35 +170,11 @@ class ARMATURE_OT_SBSim_Update(bpy.types.Operator):
     def execute(self, context):
 
         pFSM = context.scene.SBSimMainProps
-        selected_bones = []
 
-        if "SBSim" not in context.object and "SBSource" in context.object:
-            SimRig = context.object
-            TargetRig = context.scene.objects.get(context.object["SBSource"])
-        elif "SBSim" in context.object and context.object["SBSim"] in context.scene.objects:
-            TargetRig = context.object
-            SimRig = context.scene.objects.get(context.object["SBSim"])
-        else:
-            print("Sim rig not found", context.object.type)
-            return  {'FINISHED'}
-            
         if context.selected_pose_bones is not None:
-            # print("Context Object: ", context.object.name)
             for b in context.selected_pose_bones:
-                selected_bones.append(b.name)
+                b["Stiffness"] = pFSM.sbsim_stiffness
                 
-        for b in SimRig.pose.bones:
-            # print("Bone Name: ", b.name)
-            bTarg = TargetRig.pose.bones.get(b.name)
-            if bTarg is not None:
-                if bTarg.name in selected_bones:
-                    b["Stiffness"] = pFSM.sbsim_stiffness
-                    if pFSM.sbsim_stiffness < 1.0 and b.parent is not None:
-                        #Delete any unnecessary constraints
-                        for c in b.constraints:
-                            b.constraints.remove(c)
-        
-        
         return {'FINISHED'}
 
         
@@ -226,13 +208,20 @@ class ARMATURE_PT_SBSim(bpy.types.Panel):
         box.prop(scene.SBSimMainProps, "sbsim_start_frame")
         box.prop(scene.SBSimMainProps, "sbsim_end_frame")
         box.operator("armature.sbsimulate")
-        box.operator("armature.sbsim_revert")
+        box.operator("armature.sbsim_unbake")
         box = layout.box()
-        box.label("Settings")
+        box.label("Initial Setup")
+        box.operator("armature.sbsim_copy")
         box.prop(scene.SBSimMainProps, "sbsim_stiffness")
-        box.operator("armature.sbsim_update")
+        box.prop(scene.SBSimMainProps, "sbsim_bonelayer")
         box = layout.box()
-        box.operator("armature.sbsim_test")
+        box.label("Update")
+        box.operator("armature.sbsim_update")
+        box.prop(scene.SBSimMainProps, "sbsim_stiffness")
+        box = layout.box()
+        box.label("Remove")
+        box.operator("armature.sbsim_revert")
+
 
 def register():
     bpy.utils.register_class(SBSimMainProps)
