@@ -19,12 +19,13 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# version comment: V2.0.0 main branch - Simulated bones are now in the same armature
+# version comment: V0.0.3 main branch - Wobble/Late Parent Fixes
+
 bl_info = {
     "name": "RigFlex",
     "author": "Ian Huish (nerk)",
-    "version": (2, 0, 0),
-    "blender": (2, 79, 0),
+    "version": (0, 0, 0),
+    "blender": (2, 80, 0),
     "location": "Toolshelf>RigFlex",
     "description": "Quick Soft Body Simulation for Armatures",
     "warning": "",
@@ -49,11 +50,11 @@ from bl_operators.presets import AddPresetBase
 
 
 class SBSimMainProps(bpy.types.PropertyGroup):
-    sbsim_targetrig = StringProperty(name="Name of the target rig", default="")  
-    sbsim_start_frame = IntProperty(name="Simulation Start Frame", default=1)  
-    sbsim_end_frame = IntProperty(name="Simulation End Frame", default=250)  
-    sbsim_stiffness = FloatProperty(name="stiffness", default=0.5)  
-    sbsim_bonelayer = IntProperty(name="Bone Layer", default=24)  
+    sbsim_targetrig : StringProperty(name="Name of the target rig", default="")  
+    sbsim_start_frame : IntProperty(name="Simulation Start Frame", default=1)  
+    sbsim_end_frame : IntProperty(name="Simulation End Frame", default=250)  
+    sbsim_stiffness : FloatProperty(name="Stiffness", default=0.5)  
+    sbsim_bonelayer : IntProperty(name="Bone Layer", default=24)  
     
 
 
@@ -118,6 +119,8 @@ class ARMATURE_OT_SBSim_Copy(bpy.types.Operator):
                 bsim.tail = b.tail
                 bsim.matrix = b.matrix
                 bsim.parent = b.parent
+                bsim.bbone_segments = b.bbone_segments
+                # bsim.bbone_sscaleb = b.bbone_sscaleb
 
         #Connect the parents of new bones to each other and set correct layer
         for b in rig.edit_bones:
@@ -181,11 +184,14 @@ class ARMATURE_OT_SBSim_Update(bpy.types.Operator):
 
 class ARMATURE_PT_SBSim(bpy.types.Panel):
     """Creates a Panel in the Object properties window"""
-    bl_label = "SBSim"
+    bl_label = "RigFlex"
     bl_idname = "armature.sbsim"
+    # bl_space_type = 'PROPERTIES'
+    # bl_region_type = 'WINDOW'
+    # bl_context = "data"
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
-    bl_category = "RigFlex"
+    bl_region_type = 'UI'
+    bl_category = "Rigflex"
     
 
 
@@ -202,47 +208,59 @@ class ARMATURE_PT_SBSim(bpy.types.Panel):
         obj1 = context.object
         scene = context.scene
         
-        box = layout.box()
-        box.label("Main")
-        box.prop(scene.SBSimMainProps, "sbsim_start_frame")
-        box.prop(scene.SBSimMainProps, "sbsim_end_frame")
-        box.operator("armature.sbsimulate")
-        box.operator("armature.sbsim_unbake")
-        box = layout.box()
-        box.label("Initial Setup")
-        box.operator("armature.sbsim_copy")
-        box.prop(scene.SBSimMainProps, "sbsim_stiffness")
-        box.prop(scene.SBSimMainProps, "sbsim_bonelayer")
-        box = layout.box()
-        box.label("Update")
-        box.operator("armature.sbsim_update")
-        box.prop(scene.SBSimMainProps, "sbsim_stiffness")
-        box = layout.box()
-        box.label("Remove")
-        box.operator("armature.sbsim_revert")
+        # box = layout.box()
+        layout.label(text="Main")
+        layout.prop(scene.SBSimMainProps, "sbsim_start_frame")
+        layout.prop(scene.SBSimMainProps, "sbsim_end_frame")
+        layout.operator("armature.sbsimulate")
+        layout.operator("armature.sbsim_unbake")
+        # box = layout.box()
+        layout.label(text="Initial Setup")
+        layout.operator("armature.sbsim_copy")
+        layout.prop(scene.SBSimMainProps, "sbsim_stiffness")
+        layout.prop(scene.SBSimMainProps, "sbsim_bonelayer")
+        # box = layout.box()
+        layout.label(text="Update")
+        layout.operator("armature.sbsim_update")
+        layout.prop(scene.SBSimMainProps, "sbsim_stiffness")
+        # layout = layout.box()
+        layout.label(text="Remove")
+        layout.operator("armature.sbsim_revert")
 
+classes = (
+    SBSimMainProps,
+    ARMATURE_PT_SBSim,
+    ARMATURE_OT_SBSim_Copy,
+    ARMATURE_OT_SBSim_Update
+)        
 
 def register():
-    bpy.utils.register_class(SBSimMainProps)
+    from bpy.utils import register_class
+    for cls in classes:
+        register_class(cls)
+    # bpy.utils.register_class(SBSimMainProps)
     bpy.types.Scene.SBSimMainProps = bpy.props.PointerProperty(type=SBSimMainProps)
     from . import RigFlex
     RigFlex.registerTypes()
-    bpy.utils.register_class(ARMATURE_PT_SBSim)
+    # bpy.utils.register_class(ARMATURE_PT_SBSim)
     # bpy.utils.register_class(ARMATURE_OT_SBSim_Run)
-    bpy.utils.register_class(ARMATURE_OT_SBSim_Copy)
-    bpy.utils.register_class(ARMATURE_OT_SBSim_Update)
+    # bpy.utils.register_class(ARMATURE_OT_SBSim_Copy)
+    # bpy.utils.register_class(ARMATURE_OT_SBSim_Update)
     
 
 
 def unregister():
     del bpy.types.Scene.SBSimMainProps
-    bpy.utils.unregister_class(SBSimMainProps)
     from . import RigFlex
     RigFlex.unregisterTypes()
-    bpy.utils.unregister_class(ARMATURE_PT_SBSim)
-    # bpy.utils.unregister_class(ARMATURE_OT_SBSim_Run)
-    bpy.utils.unregister_class(ARMATURE_OT_SBSim_Copy)
-    bpy.utils.unregister_class(ARMATURE_OT_SBSim_Update)
+    from bpy.utils import unregister_class
+    for cls in reversed(classes):
+        unregister_class(cls)
+    # bpy.utils.unregister_class(SBSimMainProps)
+    # bpy.utils.unregister_class(ARMATURE_PT_SBSim)
+    # # bpy.utils.unregister_class(ARMATURE_OT_SBSim_Run)
+    # bpy.utils.unregister_class(ARMATURE_OT_SBSim_Copy)
+    # bpy.utils.unregister_class(ARMATURE_OT_SBSim_Update)
 
 
 if __name__ == "__main__":

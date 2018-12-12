@@ -19,7 +19,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# version comment: V2.0.0 main branch - Simulated bones are now in the same armature
+# version comment: V0.0.3 main branch - Wobble/Late Parent Fixes
 
 import bpy
 import mathutils,  math, os
@@ -170,7 +170,7 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
             for BranchBone in branch:
             
                 if nFrame == startFrame:
-                    self.sOldTail[BranchBone.name] = WT_Mat * BranchBone.tail
+                    self.sOldTail[BranchBone.name] = WT_Mat @ BranchBone.tail
                     SourceBone = self.sTargetRig.pose.bones.get(BranchBone.name[:-5])
                     if SourceBone is None:
                         print("Null Source Bone: ", BranchBone.name)
@@ -183,9 +183,9 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
                     BranchBone.rotation_mode = 'QUATERNION'
                         
                     #Do initial calcs in world co-ords    
-                    TailLoc = WT_Mat * BranchBone.tail
+                    TailLoc = WT_Mat @ BranchBone.tail
                     if BranchBone.parent is None:# or nFrame == startFrame:
-                        HeadLoc = WT_Mat * BranchBone.head
+                        HeadLoc = WT_Mat @ BranchBone.head
                     else:
                         HeadLoc = self.sOldTail[BranchBone.parent.name]
                     Movement = TailLoc - self.sOldTail[BranchBone.name]
@@ -197,7 +197,7 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
                     # Now convert rotation to the local bone co-ords
                     bm = BranchBone.matrix.to_3x3()
                     bm.invert()
-                    NewRotAxis = bm * RotMove.axis
+                    NewRotAxis = bm @ RotMove.axis
                     RotMoveLocal = mathutils.Quaternion(NewRotAxis, RotMove.angle)
                     
                     # Add spring function
@@ -211,22 +211,22 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
                     #Work out Source Bone rotation after constraints (rotation_quaternion doesn't seem to work)
                     if BranchBone.parent is not None and SourceBone is not None and SourceBone.parent is not None:
                         #Rest position inverse relationship
-                        edit2parent = (BranchBone.parent.bone.matrix_local.inverted() * BranchBone.bone.matrix_local)
+                        edit2parent = (BranchBone.parent.bone.matrix_local.inverted() @ BranchBone.bone.matrix_local)
                         
                         #Test extra for when SimRig bones have added parents
-                        edit2parent_i = (BranchBone.parent.bone.matrix_local.inverted() * BranchBone.bone.matrix_local).inverted()
-                        edit2source_i = (SourceBone.parent.bone.matrix_local.inverted() * SourceBone.bone.matrix_local).inverted()
-                        editAdjust = edit2source_i * edit2parent * edit2parent_i
+                        edit2parent_i = (BranchBone.parent.bone.matrix_local.inverted() @ BranchBone.bone.matrix_local).inverted()
+                        edit2source_i = (SourceBone.parent.bone.matrix_local.inverted() @ SourceBone.bone.matrix_local).inverted()
+                        editAdjust = edit2source_i @ edit2parent @ edit2parent_i
                         
                         #Armature Pose relationship
-                        final2parent = SourceBone.parent.matrix.inverted() * SourceBone.matrix
+                        final2parent = SourceBone.parent.matrix.inverted() @ SourceBone.matrix
                         
                         #Desired move in pose space
-                        pspacemove = editAdjust * final2parent
+                        pspacemove = editAdjust @ final2parent
 
                         SourceQuat = pspacemove.to_quaternion()
                     elif SourceBone is not None:
-                        SourceQuat = (SourceBone.bone.matrix_local.inverted() * SourceBone.matrix).to_quaternion()
+                        SourceQuat = (SourceBone.bone.matrix_local.inverted() @ SourceBone.matrix).to_quaternion()
 
                     if "Stiffness" in BranchBone:
                         NewAngle = NewAngle.slerp(SourceQuat, BranchBone["Stiffness"])
@@ -240,7 +240,7 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
                     # PrintQuat(BranchBone.rotation_quaternion, "BoneAngle")
                 
                 self.sPrevTail[BranchBone.name] = BranchBone.tail
-                self.sOldTail[BranchBone.name] = WT_Mat * BranchBone.tail
+                self.sOldTail[BranchBone.name] = WT_Mat @ BranchBone.tail
         
                 #Diagnostics
                 # print("TailLoc: (SimRig Tail)")
@@ -301,7 +301,7 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
         scene.frame_set(sFPM.sbsim_start_frame)
         self.BoneMovement(context) 
         wm = context.window_manager
-        self._timer = wm.event_timer_add(0.001, context.window)
+        self._timer = wm.event_timer_add(0.001, window=context.window)
         wm.modal_handler_add(self)
         return {'RUNNING_MODAL'}
         # return {'FINISHED'}
@@ -383,72 +383,80 @@ class ARMATURE_OT_SBSim_Revert(bpy.types.Operator):
         
         return {'FINISHED'}
 
-class ARMATURE_OT_SBSim_Test(bpy.types.Operator):
-    """Test"""
-    bl_label = "Test"
-    bl_idname = "armature.sbsim_test"
-    bl_options = {'REGISTER', 'UNDO'}
+# class ARMATURE_OT_SBSim_Test(bpy.types.Operator):
+    # """Test"""
+    # bl_label = "Test"
+    # bl_idname = "armature.sbsim_test"
+    # bl_options = {'REGISTER', 'UNDO'}
     
     
-    def execute(self, context):
-        sim = bpy.data.objects["Armature"]
-        sb = sim.pose.bones["Bone.001"]
-        test = bpy.data.objects["test"]
-        tb = test.pose.bones["Bone"]
-        tb1 = test.pose.bones["Bone.001"]
+    # def execute(self, context):
+        # sim = bpy.data.objects["Armature"]
+        # sb = sim.pose.bones["Bone.001"]
+        # test = bpy.data.objects["test"]
+        # tb = test.pose.bones["Bone"]
+        # tb1 = test.pose.bones["Bone.001"]
         
-        tbr = tb.bone.matrix_local
-        tb1r = tb1.bone.matrix_local
-        tbri = tb.bone.matrix_local.inverted()
-        tb1ri = tb1.bone.matrix_local.inverted()
+        # tbr = tb.bone.matrix_local
+        # tb1r = tb1.bone.matrix_local
+        # tbri = tb.bone.matrix_local.inverted()
+        # tb1ri = tb1.bone.matrix_local.inverted()
         
-        sbm = sb.matrix
-        sbmi = sbm.inverted()
-        sbpm = sb.parent.matrix
-        sbpmi = sbpm.inverted()
+        # sbm = sb.matrix
+        # sbmi = sbm.inverted()
+        # sbpm = sb.parent.matrix
+        # sbpmi = sbpm.inverted()
         
-        tbmi = tb.matrix.inverted()        
-        tbm = tb.matrix        
-        tb1mi = tb1.matrix.inverted()        
-        tb1m = tb1.matrix        
+        # tbmi = tb.matrix.inverted()        
+        # tbm = tb.matrix        
+        # tb1mi = tb1.matrix.inverted()        
+        # tb1m = tb1.matrix        
         
         
-        #Test Edit inverse relationship
-        edit2parent = (tbri * tb1r)
-        edit2parent_i = (tbri * tb1r).inverted()
-        print("EditRot", edit2parent_i.to_euler())
+        # #Test Edit inverse relationship
+        # edit2parent = (tbri * tb1r)
+        # edit2parent_i = (tbri * tb1r).inverted()
+        # print("EditRot", edit2parent_i.to_euler())
         
-        #Armature Pose relationship
-        final2parent = sbpmi * sbm
-        print("PoseRot", final2parent.to_euler())
+        # #Armature Pose relationship
+        # final2parent = sbpmi * sbm
+        # print("PoseRot", final2parent.to_euler())
         
-        #Desired move in pose space
-        pspacemove = edit2parent_i * final2parent
-        print("pspacemove", pspacemove.to_euler())
+        # #Desired move in pose space
+        # pspacemove = edit2parent_i * final2parent
+        # print("pspacemove", pspacemove.to_euler())
         
-        tb1.rotation_quaternion = pspacemove.to_quaternion()
+        # tb1.rotation_quaternion = pspacemove.to_quaternion()
         
-        loc = tbri * sb.parent.matrix.translation
-        tb.location = loc
+        # loc = tbri * sb.parent.matrix.translation
+        # tb.location = loc
         
 
         
-        return {'FINISHED'}
+        # return {'FINISHED'}
         
 
 def registerTypes():
-    bpy.utils.register_class(ARMATURE_OT_SBSimulate)
-    bpy.utils.register_class(ARMATURE_OT_SBSim_Revert)
-    bpy.utils.register_class(ARMATURE_OT_SBSim_Unbake)
-    bpy.utils.register_class(ARMATURE_OT_SBSim_Test)
+    classes = (ARMATURE_OT_SBSimulate,ARMATURE_OT_SBSim_Revert,ARMATURE_OT_SBSim_Unbake)
+    from bpy.utils import register_class
+    for cls in classes:
+        register_class(cls)
+    # bpy.utils.register_class(ARMATURE_OT_SBSimulate)
+    # bpy.utils.register_class(ARMATURE_OT_SBSim_Revert)
+    # bpy.utils.register_class(ARMATURE_OT_SBSim_Unbake)
+    # bpy.utils.register_class(ARMATURE_OT_SBSim_Test)
 
 def unregisterTypes():
-    bpy.utils.unregister_class(ARMATURE_OT_SBSimulate)
-    bpy.utils.unregister_class(ARMATURE_OT_SBSim_Revert)
-    bpy.utils.unregister_class(ARMATURE_OT_SBSim_Unbake)
-    bpy.utils.unregister_class(ARMATURE_OT_SBSim_Test)
+    classes = (ARMATURE_OT_SBSimulate,ARMATURE_OT_SBSim_Revert,ARMATURE_OT_SBSim_Unbake)
+    from bpy.utils import unregister_class
+    for cls in reversed(classes):
+        unregister_class(cls)
+    # bpy.utils.unregister_class(ARMATURE_OT_SBSimulate)
+    # bpy.utils.unregister_class(ARMATURE_OT_SBSim_Revert)
+    # bpy.utils.unregister_class(ARMATURE_OT_SBSim_Unbake)
+    # bpy.utils.unregister_class(ARMATURE_OT_SBSim_Test)
 
 
-if __name__ == "__main__":
-    register()
+# if __name__ == "__main__":
+    # register()
 
