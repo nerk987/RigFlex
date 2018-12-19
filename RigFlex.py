@@ -19,7 +19,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# version comment: V0.0.3 main branch - Wobble/Late Parent Fixes
+# version comment: V0.3.0 main branch - Blender 2.8 version - bone duplicate patch
 
 import bpy
 import mathutils,  math, os

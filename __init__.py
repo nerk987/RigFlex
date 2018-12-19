@@ -19,7 +19,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# version comment: V0.0.3 main branch - Wobble/Late Parent Fixes
+# version comment: V0.3.0 main branch - Blender 2.8 version - bone duplicate patch
 
 bl_info = {
     "name": "RigFlex",
@@ -91,66 +91,57 @@ class ARMATURE_OT_SBSim_Copy(bpy.types.Operator):
         #Get the object
         pFSM = context.scene.SBSimMainProps
         TargetRig = context.object
-        selected_bones = []
-        if context.selected_pose_bones is not None:
-            for b in context.selected_pose_bones:
-                print("Selected", b.name)
-                selected_bones.append(b.name)
         if TargetRig.type != "ARMATURE":
             print("Not an Armature", context.object.type)
             return  {'FINISHED'}
         TargetRig["SBSim"] = "True"
             
-        #Add a copy Transforms constraint at the object level
-        
-        #delete all non-deform bones
+        #Go to edit mode and 'tag' the selected bones
         rig = TargetRig.data
-        # context.scene.objects.active = SimRig
         OrigMode = context.mode
         bpy.ops.object.mode_set(mode='EDIT')
+        if context.selected_editable_bones is not None:
+            for b in context.selected_editable_bones:
+                # print("Selected", b.name)
+                b["flex"] = b.name
         
-        #Duplicate each selected bone in Edit mode
+        #Duplicate via op
+        bpy.ops.armature.duplicate()
+
+        #update the names and layer of the duplicated bones
         for b in rig.edit_bones:
-            print("EditBone", b.name)
-            if b.name in selected_bones:
-                bsim = rig.edit_bones.new(b.name + "_flex")
-                print("New Bone", bsim.name)
-                bsim.head = b.head
-                bsim.tail = b.tail
-                bsim.matrix = b.matrix
-                bsim.parent = b.parent
-                bsim.bbone_segments = b.bbone_segments
-                # bsim.bbone_sscaleb = b.bbone_sscaleb
+            if "flex" in b:
+                if b["flex"] == b.name:
+                    del b["flex"]
+                else:
+                    # print("Update Name: ", b["flex"])
+                    b.name = b["flex"] + "_flex"
+                    b.layers[pFSM.sbsim_bonelayer] = True
+                    for i in range(31):
+                        b.layers[i] = (i == pFSM.sbsim_bonelayer)
 
         #Connect the parents of new bones to each other and set correct layer
         for b in rig.edit_bones:
-            if b.name[-5:] == "_flex":
-                if b.parent is not None:
-                    print("BoneIDEdit", b.parent.name)
+            if "flex" in b:
+                if b.parent is not None and b.parent.name[-5:] != "_flex":
+                    # print("BoneIDEdit", b.parent.name)
                     if b.parent.name + "_flex" in rig.edit_bones:
                         b.parent = rig.edit_bones.get(b.parent.name + "_flex", None)
-                        print("BoneParentAdd", b.parent.name)
+                        # print("BoneParentAdd", b.parent.name)
                     else:
                         b.parent = None
-                b.layers[pFSM.sbsim_bonelayer] = True
-                # b.layers[0] = False
-                print("Layer0", b.layers[0])
-                for i in range(31):
-                    if i != pFSM.sbsim_bonelayer:
-                        b.layers[i] = False
 
                 
         #Return from Edit mode
         bpy.ops.object.mode_set(mode=OrigMode)
                
-        #Fix up the parents
-        
-        
-
+        #Add stiffness and add a 'Copy Transforms' constraint
         for b in TargetRig.pose.bones:
-            print("BoneIDPose", b.name[-5:])
+            # print("BoneIDPose", b.name[-5:])
             if b.name[-5:] == "_flex":
                 b["Stiffness"] = pFSM.sbsim_stiffness
+                for c in b.constraints:
+                    b.constraints.remove(c)
                 crc = b.constraints.new('COPY_TRANSFORMS')
                 crc.target = TargetRig
                 crc.subtarget = b.name[:-5]
