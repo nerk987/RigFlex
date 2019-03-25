@@ -72,17 +72,18 @@ class ARMATURE_OT_SBSim_Copy(bpy.types.Operator):
         for b in targetRig.pose.bones:
             if b.name[-5:] == "_flex":
                 ChangeGroups.append(b.name[:-5])
-                print("ChangeGroups add: ", b.name[:-5])
+                # print("ChangeGroups add: ", b.name[:-5])
         for o in context.scene.objects:
             ArmMod = False
             for mod in o.modifiers:
                 if mod.type == 'ARMATURE' and mod.object is not None:
                     if mod.object.name == targetRig.name:
-                        print("Object found: ", o.name)
+                        # print("Object found: ", o.name)
                         ArmMod = True
-            for vg in o.vertex_groups:
-                if vg.name in ChangeGroups:
-                    vg.name = vg.name + "_flex"
+            if ArmMod:
+                for vg in o.vertex_groups:
+                    if vg.name in ChangeGroups:
+                        vg.name = vg.name + "_flex"
             
     
 
@@ -102,8 +103,10 @@ class ARMATURE_OT_SBSim_Copy(bpy.types.Operator):
         bpy.ops.object.mode_set(mode='EDIT')
         if context.selected_editable_bones is not None:
             for b in context.selected_editable_bones:
-                # print("Selected", b.name)
-                b["flex"] = b.name
+                if b.name + "_flex" not in rig.bones:
+                    b["flex"] = b.name
+                else:
+                    b.select = False
         
         #Duplicate via op
         bpy.ops.armature.duplicate()

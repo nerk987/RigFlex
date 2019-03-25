@@ -89,22 +89,22 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
                 newBranch = [c]
                 self.sTree.append(newBranch)
                 self.addBranch(bones, newBranch, c)
-                print("Added Subbranch: ", c.name)
+                # print("Added Subbranch: ", c.name)
         elif len(children) == 1:
             Branch.append(children[0])
             self.addBranch(bones, Branch, children[0])
-            print("Added Leaf: ", children[0].name)
+            # print("Added Leaf: ", children[0].name)
 
 
     def BuildTree(self, TargetRig):
-        print("BuildTree")
+        # print("BuildTree")
         self.sTree = []
         for b in TargetRig.pose.bones:
             if b.name[-5:] == "_flex" and b.parent == None:
                 Branch = [b]
                 self.sTree.append(Branch)
                 self.addBranch(TargetRig.pose.bones, Branch, b)
-                print("Added Branch: ", b.name)
+                # print("Added Branch: ", b.name)
     
     
     def SetInitialKeyframe(self, TargetRig, nFrame):
@@ -125,7 +125,7 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
     #Set up the parameter for the iteration in ModalMove        
     def BoneMovement(self, context):
     
-        print("BoneMovement")
+        # print("BoneMovement")
         
         scene = context.scene
         pFSM = scene.SBSimMainProps
@@ -256,7 +256,7 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
         #Go to next frame, or finish
         wm = context.window_manager
         if nFrame == endFrame:
-            print("Finished")
+            # print("Finished")
             return 0
         else:
             wm.progress_update(nFrame*99.0/endFrame)
@@ -286,7 +286,7 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
         
         self.sTargetRig = context.object
         
-        print ("Current Name: ", context.object.name)
+        # print ("Current Name: ", context.object.name)
 
         #Convert dependent objects
         context.scene.frame_set(sFPM.sbsim_start_frame)
@@ -347,12 +347,13 @@ class ARMATURE_OT_SBSim_Revert(bpy.types.Operator):
             for mod in o.modifiers:
                 if mod.type == 'ARMATURE' and mod.object is not None:
                     if mod.object.name == targetRig.name:
-                        print("RevertVG Object found: ", o.name)
+                        # print("RevertVG Object found: ", o.name)
                         ArmMod = True
-            for vg in o.vertex_groups:
-                print("Looking at VG: ", vg.name)
-                if vg.name[-5:] == "_flex":
-                    vg.name = vg.name[:-5]
+            if ArmMod:
+                for vg in o.vertex_groups:
+                    # print("Looking at VG: ", vg.name)
+                    if vg.name[-5:] == "_flex":
+                        vg.name = vg.name[:-5]
 
 
     #revert to the original amature    
@@ -372,7 +373,7 @@ class ARMATURE_OT_SBSim_Revert(bpy.types.Operator):
         OrigMode = context.mode
         bpy.ops.object.mode_set(mode='EDIT')
         for b in TargetRig.data.edit_bones:
-            print("Delete EditBone: ", b.name)
+            # print("Delete EditBone: ", b.name)
             if b.name[-5:] == "_flex":
                 TargetRig.data.edit_bones.remove(b)
                         
