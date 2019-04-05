@@ -19,7 +19,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# version comment: V0.3.0 main branch - Blender 2.8 version - bone duplicate patch
+# version comment: V0.3.2 main branch - Blender 2.8 version - Multi armature patch and freeze option
 
 import bpy
 import mathutils,  math, os
@@ -69,7 +69,7 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
     def Redirect(self, targetRig, Dirn, context):
     
         for b in targetRig.pose.bones:
-            if b.name[-5:] == "_flex":
+            if b.name[-5:] == "_flex" and "Freeze" not in b:
                 for c in b.constraints:
                     b.constraints.remove(c)
                 if b.parent == None:
@@ -115,7 +115,7 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
     def RemoveKeyframes(self, armature, bones):
         dispose_paths = []
         for bone in bones:
-            if bone.name[-5:] == "_flex":
+            if bone.name[-5:] == "_flex" and "Freeze" not in bone:
                 dispose_paths.append('pose.bones["{}"].rotation_quaternion'.format(bone.name))
                 dispose_paths.append('pose.bones["{}"].scale'.format(bone.name))
         dispose_curves = [fcurve for fcurve in armature.animation_data.action.fcurves if fcurve.data_path in dispose_paths]
@@ -234,7 +234,8 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
                         NewAngle = NewAngle.slerp(SourceQuat, pFSM.sbsim_stiffness)
                     # if nFrame > startFrame:
                     BranchBone.rotation_quaternion = NewAngle
-                BranchBone.keyframe_insert(data_path='rotation_quaternion',  frame=(nFrame))
+                if "Freeze" not in BranchBone:
+                    BranchBone.keyframe_insert(data_path='rotation_quaternion',  frame=(nFrame))
                 context.scene.update()
                 # if "DEF-FeelerT.002.R" in BranchBone.name:
                     # PrintQuat(BranchBone.rotation_quaternion, "BoneAngle")
@@ -327,7 +328,7 @@ class ARMATURE_OT_SBSim_Unbake(bpy.types.Operator):
             print("Not an Armature", context.object.type)
             return  {'FINISHED'}
         for b in TargetRig.pose.bones:
-            if b.name[-5:] == "_flex":
+            if b.name[-5:] == "_flex" and "Freeze" not in b:
                 crc = b.constraints.new('COPY_TRANSFORMS')
                 crc.target = TargetRig
                 crc.subtarget = b.name[:-5]

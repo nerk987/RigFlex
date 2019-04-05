@@ -19,12 +19,12 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# version comment: V0.3.0 main branch - Blender 2.8 version - bone duplicate patch
+# version comment: V0.3.2 main branch - Blender 2.8 version - Multi armature patch and freeze option
 
 bl_info = {
     "name": "RigFlex",
     "author": "Ian Huish (nerk)",
-    "version": (0, 0, 0),
+    "version": (0, 0, 2),
     "blender": (2, 80, 0),
     "location": "Toolshelf>RigFlex",
     "description": "Quick Soft Body Simulation for Armatures",
@@ -72,13 +72,13 @@ class ARMATURE_OT_SBSim_Copy(bpy.types.Operator):
         for b in targetRig.pose.bones:
             if b.name[-5:] == "_flex":
                 ChangeGroups.append(b.name[:-5])
-                # print("ChangeGroups add: ", b.name[:-5])
+                print("ChangeGroups add: ", b.name[:-5])
         for o in context.scene.objects:
             ArmMod = False
             for mod in o.modifiers:
                 if mod.type == 'ARMATURE' and mod.object is not None:
                     if mod.object.name == targetRig.name:
-                        # print("Object found: ", o.name)
+                        print("Object found: ", o.name)
                         ArmMod = True
             if ArmMod:
                 for vg in o.vertex_groups:
@@ -173,7 +173,51 @@ class ARMATURE_OT_SBSim_Update(bpy.types.Operator):
                 
         return {'FINISHED'}
 
-        
+
+class ARMATURE_OT_SBSim_Freeze(bpy.types.Operator):
+    """Freeze the selected bones"""
+    bl_label = "Freeze"
+    bl_idname = "armature.sbsim_freeze"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+
+    #Update the simulated armature settings    
+    def execute(self, context):
+
+        pFSM = context.scene.SBSimMainProps
+        rig = context.object
+
+        if context.selected_pose_bones is not None:
+            for b in context.selected_pose_bones:
+                if b.name[-5:] != "_flex":
+                    if b.name + "_flex" in rig.pose.bones:
+                        b = rig.pose.bones[b.name + "_flex"]
+                b["Freeze"] = 1
+                
+        return {'FINISHED'}
+
+class ARMATURE_OT_SBSim_Unfreeze(bpy.types.Operator):
+    """Unfreeze the selected bones"""
+    bl_label = "Unfreeze"
+    bl_idname = "armature.sbsim_unfreeze"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+
+    #Update the simulated armature settings    
+    def execute(self, context):
+
+        pFSM = context.scene.SBSimMainProps
+        rig = context.object
+
+        if context.selected_pose_bones is not None:
+            for b in context.selected_pose_bones:
+                if b.name[-5:] != "_flex":
+                    if b.name + "_flex" in rig.pose.bones:
+                        b = rig.pose.bones[b.name + "_flex"]
+                if "Freeze" in b:
+                    del b["Freeze"]
+                
+        return {'FINISHED'}
     
 
 class ARMATURE_PT_SBSim(bpy.types.Panel):
@@ -220,12 +264,17 @@ class ARMATURE_PT_SBSim(bpy.types.Panel):
         # layout = layout.box()
         layout.label(text="Remove")
         layout.operator("armature.sbsim_revert")
+        layout.label(text="Freeze")
+        layout.operator("armature.sbsim_freeze")
+        layout.operator("armature.sbsim_unfreeze")
 
 classes = (
     SBSimMainProps,
     ARMATURE_PT_SBSim,
     ARMATURE_OT_SBSim_Copy,
-    ARMATURE_OT_SBSim_Update
+    ARMATURE_OT_SBSim_Update,
+    ARMATURE_OT_SBSim_Freeze,
+    ARMATURE_OT_SBSim_Unfreeze
 )        
 
 def register():
