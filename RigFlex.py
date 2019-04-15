@@ -19,7 +19,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# version comment: V0.3.2 main branch - Blender 2.8 version - Multi armature patch and freeze option
+# version comment: V0.3.3 main branch - Blender 2.8 version - Init/Revert bug fix
 
 import bpy
 import mathutils,  math, os
@@ -44,9 +44,12 @@ def RemoveKeyframes2(armature, bones):
         if bone.name[-5:] == "_flex":
             dispose_paths.append('pose.bones["{}"].rotation_quaternion'.format(bone.name))
             dispose_paths.append('pose.bones["{}"].scale'.format(bone.name))
-    dispose_curves = [fcurve for fcurve in armature.animation_data.action.fcurves if fcurve.data_path in dispose_paths]
-    for fcurve in dispose_curves:
-        armature.animation_data.action.fcurves.remove(fcurve)
+    try:
+        dispose_curves = [fcurve for fcurve in armature.animation_data.action.fcurves if fcurve.data_path in dispose_paths]
+        for fcurve in dispose_curves:
+            armature.animation_data.action.fcurves.remove(fcurve)
+    except AttributeError:
+        pass
 
     
 class ARMATURE_OT_SBSimulate(bpy.types.Operator):

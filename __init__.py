@@ -19,12 +19,12 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# version comment: V0.3.2 main branch - Blender 2.8 version - Multi armature patch and freeze option
+# version comment: V0.3.3 main branch - Blender 2.8 version - Init/Revert bug fix
 
 bl_info = {
     "name": "RigFlex",
     "author": "Ian Huish (nerk)",
-    "version": (0, 0, 2),
+    "version": (0, 3, 3),
     "blender": (2, 80, 0),
     "location": "Toolshelf>RigFlex",
     "description": "Quick Soft Body Simulation for Armatures",
