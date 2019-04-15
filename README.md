@@ -1,8 +1,8 @@
 # RigFlex - Simple Soft Body for Armatures
 
-V0.3.2 Initial Blender 2.8 - multi armature bug fix and freeze options
+V0.3.3 Initial Blender 2.8 - init/revert fix
 
-Addon Download : [RigFlex.zip](https://github.com/nerk987/RigFlex/releases/download/v0.3.2/RigFlex.zip) 
+Addon Download : [RigFlex.zip](https://github.com/nerk987/RigFlex/releases/download/v0.3.3/RigFlex.zip) 
 
 # 1.0 Introduction
 The movement of many animated characters is improved by some sort of soft body simulation. Antennas, clothing, tails, feathers, scales - you name it. Blender has a variety of techniques for this, often using soft body or cloth simulation applied to a lattice or mesh which in turn is applied to the cahracter mesh via modifiers. It's very flexible and powerful, but take some effort to set up.
