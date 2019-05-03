@@ -19,11 +19,11 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# version comment: V2.0.0 main branch - Simulated bones are now in the same armature
+# version comment: V0.3.3 main branch - Blender 2.79 version - Init/Revert/Multi bug fix + freeze
 bl_info = {
     "name": "RigFlex",
     "author": "Ian Huish (nerk)",
-    "version": (2, 0, 0),
+    "version": (0, 3, 3),
     "blender": (2, 79, 0),
     "location": "Toolshelf>RigFlex",
     "description": "Quick Soft Body Simulation for Armatures",
@@ -79,9 +79,10 @@ class ARMATURE_OT_SBSim_Copy(bpy.types.Operator):
                     if mod.object.name == targetRig.name:
                         print("Object found: ", o.name)
                         ArmMod = True
-            for vg in o.vertex_groups:
-                if vg.name in ChangeGroups:
-                    vg.name = vg.name + "_flex"
+            if ArmMod:
+                for vg in o.vertex_groups:
+                    if vg.name in ChangeGroups:
+                        vg.name = vg.name + "_flex"
             
     
 
@@ -90,64 +91,60 @@ class ARMATURE_OT_SBSim_Copy(bpy.types.Operator):
         #Get the object
         pFSM = context.scene.SBSimMainProps
         TargetRig = context.object
-        selected_bones = []
-        if context.selected_pose_bones is not None:
-            for b in context.selected_pose_bones:
-                print("Selected", b.name)
-                selected_bones.append(b.name)
         if TargetRig.type != "ARMATURE":
             print("Not an Armature", context.object.type)
             return  {'FINISHED'}
         TargetRig["SBSim"] = "True"
             
-        #Add a copy Transforms constraint at the object level
-        
-        #delete all non-deform bones
+        #Go to edit mode and 'tag' the selected bones
         rig = TargetRig.data
-        # context.scene.objects.active = SimRig
         OrigMode = context.mode
         bpy.ops.object.mode_set(mode='EDIT')
+        if context.selected_editable_bones is not None:
+            for b in context.selected_editable_bones:
+                if b.name + "_flex" not in rig.bones:
+                    b["flex"] = b.name
+                else:
+                    b.select = False
         
-        #Duplicate each selected bone in Edit mode
+        #Duplicate via op
+        bpy.ops.armature.duplicate()
+
+        #update the names and layer of the duplicated bones
         for b in rig.edit_bones:
-            print("EditBone", b.name)
-            if b.name in selected_bones:
-                bsim = rig.edit_bones.new(b.name + "_flex")
-                print("New Bone", bsim.name)
-                bsim.head = b.head
-                bsim.tail = b.tail
-                bsim.matrix = b.matrix
-                bsim.parent = b.parent
+            if "flex" in b:
+                if b["flex"] == b.name:
+                    del b["flex"]
+                else:
+                    # print("Update Name: ", b["flex"])
+                    b.name = b["flex"] + "_flex"
+                    b.layers[pFSM.sbsim_bonelayer] = True
+                    for i in range(31):
+                        b.layers[i] = (i == pFSM.sbsim_bonelayer)
 
         #Connect the parents of new bones to each other and set correct layer
         for b in rig.edit_bones:
-            if b.name[-5:] == "_flex":
-                if b.parent is not None:
-                    print("BoneIDEdit", b.parent.name)
+            if "flex" in b:
+                if b.parent is not None and b.parent.name[-5:] != "_flex":
+                    # print("BoneIDEdit", b.parent.name)
                     if b.parent.name + "_flex" in rig.edit_bones:
                         b.parent = rig.edit_bones.get(b.parent.name + "_flex", None)
-                        print("BoneParentAdd", b.parent.name)
+                        # print("BoneParentAdd", b.parent.name)
                     else:
                         b.parent = None
-                b.layers[pFSM.sbsim_bonelayer] = True
-                # b.layers[0] = False
-                print("Layer0", b.layers[0])
-                for i in range(31):
-                    if i != pFSM.sbsim_bonelayer:
-                        b.layers[i] = False
 
                 
         #Return from Edit mode
         bpy.ops.object.mode_set(mode=OrigMode)
                
-        #Fix up the parents
-        
-        
+        #Add stiffness and add a 'Copy Transforms' constraint
 
         for b in TargetRig.pose.bones:
-            print("BoneIDPose", b.name[-5:])
+            # print("BoneIDPose", b.name[-5:])
             if b.name[-5:] == "_flex":
                 b["Stiffness"] = pFSM.sbsim_stiffness
+                for c in b.constraints:
+                    b.constraints.remove(c)
                 crc = b.constraints.new('COPY_TRANSFORMS')
                 crc.target = TargetRig
                 crc.subtarget = b.name[:-5]
@@ -176,6 +173,51 @@ class ARMATURE_OT_SBSim_Update(bpy.types.Operator):
                 
         return {'FINISHED'}
 
+
+class ARMATURE_OT_SBSim_Freeze(bpy.types.Operator):
+    """Freeze the selected bones"""
+    bl_label = "Freeze"
+    bl_idname = "armature.sbsim_freeze"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+
+    #Update the simulated armature settings    
+    def execute(self, context):
+
+        pFSM = context.scene.SBSimMainProps
+        rig = context.object
+
+        if context.selected_pose_bones is not None:
+            for b in context.selected_pose_bones:
+                if b.name[-5:] != "_flex":
+                    if b.name + "_flex" in rig.pose.bones:
+                        b = rig.pose.bones[b.name + "_flex"]
+                b["Freeze"] = 1
+                
+        return {'FINISHED'}
+
+class ARMATURE_OT_SBSim_Unfreeze(bpy.types.Operator):
+    """Unfreeze the selected bones"""
+    bl_label = "Unfreeze"
+    bl_idname = "armature.sbsim_unfreeze"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+
+    #Update the simulated armature settings    
+    def execute(self, context):
+
+        pFSM = context.scene.SBSimMainProps
+        rig = context.object
+
+        if context.selected_pose_bones is not None:
+            for b in context.selected_pose_bones:
+                if b.name[-5:] != "_flex":
+                    if b.name + "_flex" in rig.pose.bones:
+                        b = rig.pose.bones[b.name + "_flex"]
+                if "Freeze" in b:
+                    del b["Freeze"]
+                
+        return {'FINISHED'}
         
     
 
@@ -220,6 +262,10 @@ class ARMATURE_PT_SBSim(bpy.types.Panel):
         box = layout.box()
         box.label("Remove")
         box.operator("armature.sbsim_revert")
+        box = layout.box()
+        box.label("Freeze")
+        box.operator("armature.sbsim_freeze")
+        box.operator("armature.sbsim_unfreeze")
 
 
 def register():
@@ -231,6 +277,8 @@ def register():
     # bpy.utils.register_class(ARMATURE_OT_SBSim_Run)
     bpy.utils.register_class(ARMATURE_OT_SBSim_Copy)
     bpy.utils.register_class(ARMATURE_OT_SBSim_Update)
+    bpy.utils.register_class(ARMATURE_OT_SBSim_Freeze)
+    bpy.utils.register_class(ARMATURE_OT_SBSim_Unfreeze)
     
 
 
@@ -243,6 +291,8 @@ def unregister():
     # bpy.utils.unregister_class(ARMATURE_OT_SBSim_Run)
     bpy.utils.unregister_class(ARMATURE_OT_SBSim_Copy)
     bpy.utils.unregister_class(ARMATURE_OT_SBSim_Update)
+    bpy.utils.unregister_class(ARMATURE_OT_SBSim_Freeze)
+    bpy.utils.unregister_class(ARMATURE_OT_SBSim_Unfreeze)
 
 
 if __name__ == "__main__":

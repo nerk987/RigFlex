@@ -19,7 +19,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# version comment: V2.0.0 main branch - Simulated bones are now in the same armature
+# version comment: V0.3.3 main branch - Blender 2.79 version - Init/Revert/Multi bug fix + freeze
 
 import bpy
 import mathutils,  math, os
@@ -44,9 +44,12 @@ def RemoveKeyframes2(armature, bones):
         if bone.name[-5:] == "_flex":
             dispose_paths.append('pose.bones["{}"].rotation_quaternion'.format(bone.name))
             dispose_paths.append('pose.bones["{}"].scale'.format(bone.name))
-    dispose_curves = [fcurve for fcurve in armature.animation_data.action.fcurves if fcurve.data_path in dispose_paths]
-    for fcurve in dispose_curves:
-        armature.animation_data.action.fcurves.remove(fcurve)
+    try:
+        dispose_curves = [fcurve for fcurve in armature.animation_data.action.fcurves if fcurve.data_path in dispose_paths]
+        for fcurve in dispose_curves:
+            armature.animation_data.action.fcurves.remove(fcurve)
+    except AttributeError:
+        pass
 
     
 class ARMATURE_OT_SBSimulate(bpy.types.Operator):
@@ -69,7 +72,7 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
     def Redirect(self, targetRig, Dirn, context):
     
         for b in targetRig.pose.bones:
-            if b.name[-5:] == "_flex":
+            if b.name[-5:] == "_flex" and "Freeze" not in b:
                 for c in b.constraints:
                     b.constraints.remove(c)
                 if b.parent == None:
@@ -89,22 +92,22 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
                 newBranch = [c]
                 self.sTree.append(newBranch)
                 self.addBranch(bones, newBranch, c)
-                print("Added Subbranch: ", c.name)
+                # print("Added Subbranch: ", c.name)
         elif len(children) == 1:
             Branch.append(children[0])
             self.addBranch(bones, Branch, children[0])
-            print("Added Leaf: ", children[0].name)
+            # print("Added Leaf: ", children[0].name)
 
 
     def BuildTree(self, TargetRig):
-        print("BuildTree")
+        # print("BuildTree")
         self.sTree = []
         for b in TargetRig.pose.bones:
             if b.name[-5:] == "_flex" and b.parent == None:
                 Branch = [b]
                 self.sTree.append(Branch)
                 self.addBranch(TargetRig.pose.bones, Branch, b)
-                print("Added Branch: ", b.name)
+                # print("Added Branch: ", b.name)
     
     
     def SetInitialKeyframe(self, TargetRig, nFrame):
@@ -115,7 +118,7 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
     def RemoveKeyframes(self, armature, bones):
         dispose_paths = []
         for bone in bones:
-            if bone.name[-5:] == "_flex":
+            if bone.name[-5:] == "_flex" and "Freeze" not in bone:
                 dispose_paths.append('pose.bones["{}"].rotation_quaternion'.format(bone.name))
                 dispose_paths.append('pose.bones["{}"].scale'.format(bone.name))
         dispose_curves = [fcurve for fcurve in armature.animation_data.action.fcurves if fcurve.data_path in dispose_paths]
@@ -125,7 +128,7 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
     #Set up the parameter for the iteration in ModalMove        
     def BoneMovement(self, context):
     
-        print("BoneMovement")
+        # print("BoneMovement")
         
         scene = context.scene
         pFSM = scene.SBSimMainProps
@@ -234,7 +237,8 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
                         NewAngle = NewAngle.slerp(SourceQuat, pFSM.sbsim_stiffness)
                     # if nFrame > startFrame:
                     BranchBone.rotation_quaternion = NewAngle
-                BranchBone.keyframe_insert(data_path='rotation_quaternion',  frame=(nFrame))
+                if "Freeze" not in BranchBone:
+                    BranchBone.keyframe_insert(data_path='rotation_quaternion',  frame=(nFrame))
                 context.scene.update()
                 # if "DEF-FeelerT.002.R" in BranchBone.name:
                     # PrintQuat(BranchBone.rotation_quaternion, "BoneAngle")
@@ -256,7 +260,7 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
         #Go to next frame, or finish
         wm = context.window_manager
         if nFrame == endFrame:
-            print("Finished")
+            # print("Finished")
             return 0
         else:
             wm.progress_update(nFrame*99.0/endFrame)
@@ -286,7 +290,7 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
         
         self.sTargetRig = context.object
         
-        print ("Current Name: ", context.object.name)
+        # print ("Current Name: ", context.object.name)
 
         #Convert dependent objects
         context.scene.frame_set(sFPM.sbsim_start_frame)
@@ -327,7 +331,7 @@ class ARMATURE_OT_SBSim_Unbake(bpy.types.Operator):
             print("Not an Armature", context.object.type)
             return  {'FINISHED'}
         for b in TargetRig.pose.bones:
-            if b.name[-5:] == "_flex":
+            if b.name[-5:] == "_flex" and "Freeze" not in b:
                 crc = b.constraints.new('COPY_TRANSFORMS')
                 crc.target = TargetRig
                 crc.subtarget = b.name[:-5]
@@ -347,12 +351,13 @@ class ARMATURE_OT_SBSim_Revert(bpy.types.Operator):
             for mod in o.modifiers:
                 if mod.type == 'ARMATURE' and mod.object is not None:
                     if mod.object.name == targetRig.name:
-                        print("RevertVG Object found: ", o.name)
+                        # print("RevertVG Object found: ", o.name)
                         ArmMod = True
-            for vg in o.vertex_groups:
-                print("Looking at VG: ", vg.name)
-                if vg.name[-5:] == "_flex":
-                    vg.name = vg.name[:-5]
+            if ArmMod:
+                for vg in o.vertex_groups:
+                    # print("Looking at VG: ", vg.name)
+                    if vg.name[-5:] == "_flex":
+                        vg.name = vg.name[:-5]
 
 
     #revert to the original amature    
@@ -372,7 +377,7 @@ class ARMATURE_OT_SBSim_Revert(bpy.types.Operator):
         OrigMode = context.mode
         bpy.ops.object.mode_set(mode='EDIT')
         for b in TargetRig.data.edit_bones:
-            print("Delete EditBone: ", b.name)
+            # print("Delete EditBone: ", b.name)
             if b.name[-5:] == "_flex":
                 TargetRig.data.edit_bones.remove(b)
                         
