@@ -1,8 +1,9 @@
 # RigFlex - Simple Soft Body for Armatures
 
-V0.3.3 Initial Blender 2.8 - init/revert fix
+V0.3.4 Initial Blender 2.8 - Added initialize and set frame range on first bake
 
-Addon Download : [RigFlex.zip](https://github.com/nerk987/RigFlex/releases/download/v0.3.3/RigFlex.zip) 
+Addon Download : [RigFlex.zip](https://github.com/nerk987/RigFlex/releases/download/v0.3.4/RigFlex.zip) 
+2.79 Version Download : [RigFlex.zip](https://github.com/nerk987/RigFlex/releases/download/v0.3.4-2.79/RigFlex.zip) 
 
 # 1.0 Introduction
 The movement of many animated characters is improved by some sort of soft body simulation. Antennas, clothing, tails, feathers, scales - you name it. Blender has a variety of techniques for this, often using soft body or cloth simulation applied to a lattice or mesh which in turn is applied to the cahracter mesh via modifiers. It's very flexible and powerful, but take some effort to set up.
@@ -17,9 +18,7 @@ Download the RigFlex.zip file, install and enable in the usual way.
 
 ## 3.1 Quick Start
 
-Briefly, you animate your rig however you want. When your're done, in Pose mode, select the deform bones that require a 'soft body' action. Locate the RigFlex tab in the Toolshelf to the left. In the 'Initial Setup' panel, click on the 'Initialize' button. The bones you had selected are duplicated to the bone layer shown in the same panel, and any meshes which have an assocoiated armature modifier or parent are updated to those bones if required. Then in the 'Main' panel, set the start and end frames to be baked, and press the 'Bake' button.
-
-The addon adds keyframes for the bones you originally selected over the start to end frames. These bones should now have a soft body look. 
+Briefly, you animate your rig however you want. When your're done, in Pose mode, select the deform bones that require a 'soft body' action. Locate the RigFlex tab in the Toolshelf to the left. In the 'Main' panel, click on the 'Bake' button. The bones you had selected are duplicated to the bone layer shown in the same panel, and any meshes which have an assocoiated armature modifier or parent are updated to those bones if required. A simple soft body action is baked to keyframes on the bones in the new 'flex' bone layer.
 
 To change the animation, click on the 'Free Bake' button and the new bones will be track the original bones. Modify the animation on the original rig, then hit the 'Bake' button again. Once again the soft body action will be baked to the new bone layer.
 

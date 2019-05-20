@@ -19,7 +19,7 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# version comment: V0.3.3 main branch - Blender 2.8 version - Init/Revert bug fix
+# version comment: V0.3.4 main branch - Blender 2.80 version - Call initialize and set range on first bake
 
 import bpy
 import mathutils,  math, os
@@ -68,6 +68,14 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
     sPrevTail = {}
     sBone = None
     sNode = []
+    
+    #check for any flex bones
+    def InitDone(self, targetRig):
+        found = False
+        for b in targetRig.pose.bones:
+            if b.name[-5:] == "_flex":
+                found = True
+        return found
     
     def Redirect(self, targetRig, Dirn, context):
     
@@ -149,7 +157,8 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
         
         #record to previous tail position
         context.scene.frame_set(startFrame)
-        context.scene.update()
+        layer = context.view_layer
+        layer.update()
         # self.SetInitialKeyframe(TargetRig, startFrame)
         
     def ModalMove(self, context):
@@ -157,7 +166,8 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
         pFSM = scene.SBSimMainProps
         startFrame = pFSM.sbsim_start_frame
         endFrame = pFSM.sbsim_end_frame
-        context.scene.update()
+        layer = context.view_layer
+        layer.update()
         
         nFrame = scene.frame_current
         # print("Frame: ", nFrame)
@@ -181,7 +191,8 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
                         BranchBone.matrix = SourceBone.matrix
                 else:
 
-                    context.scene.update()
+                    layer = context.view_layer
+                    layer.update()
 
                     BranchBone.rotation_mode = 'QUATERNION'
                         
@@ -239,7 +250,8 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
                     BranchBone.rotation_quaternion = NewAngle
                 if "Freeze" not in BranchBone:
                     BranchBone.keyframe_insert(data_path='rotation_quaternion',  frame=(nFrame))
-                context.scene.update()
+                layer = context.view_layer
+                layer.update()
                 # if "DEF-FeelerT.002.R" in BranchBone.name:
                     # PrintQuat(BranchBone.rotation_quaternion, "BoneAngle")
                 
@@ -290,8 +302,12 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
         
         self.sTargetRig = context.object
         
-        # print ("Current Name: ", context.object.name)
-
+        #Initialize and set frame range on first bake
+        if not self.InitDone(self.sTargetRig):
+            bpy.ops.armature.sbsim_copy()
+            sFPM.sbsim_start_frame = context.scene.frame_start
+            sFPM.sbsim_end_frame = context.scene.frame_end
+        
         #Convert dependent objects
         context.scene.frame_set(sFPM.sbsim_start_frame)
         self.Redirect(self.sTargetRig, True, context)
