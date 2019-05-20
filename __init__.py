@@ -19,11 +19,11 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# version comment: V0.3.3 main branch - Blender 2.79 version - Init/Revert/Multi bug fix + freeze
+# version comment: V0.3.4 main branch - Blender 2.8 version - Added initialize and set range on first bake
 bl_info = {
     "name": "RigFlex",
     "author": "Ian Huish (nerk)",
-    "version": (0, 3, 3),
+    "version": (0, 3, 4),
     "blender": (2, 79, 0),
     "location": "Toolshelf>RigFlex",
     "description": "Quick Soft Body Simulation for Armatures",
@@ -71,13 +71,13 @@ class ARMATURE_OT_SBSim_Copy(bpy.types.Operator):
         for b in targetRig.pose.bones:
             if b.name[-5:] == "_flex":
                 ChangeGroups.append(b.name[:-5])
-                print("ChangeGroups add: ", b.name[:-5])
+                # print("ChangeGroups add: ", b.name[:-5])
         for o in context.scene.objects:
             ArmMod = False
             for mod in o.modifiers:
                 if mod.type == 'ARMATURE' and mod.object is not None:
                     if mod.object.name == targetRig.name:
-                        print("Object found: ", o.name)
+                        # print("Object found: ", o.name)
                         ArmMod = True
             if ArmMod:
                 for vg in o.vertex_groups:
@@ -102,6 +102,9 @@ class ARMATURE_OT_SBSim_Copy(bpy.types.Operator):
         bpy.ops.object.mode_set(mode='EDIT')
         if context.selected_editable_bones is not None:
             for b in context.selected_editable_bones:
+                if b.name[-5:] == "_flex":
+                    b.select = False
+                    # print("Flex bone selected: ", b.select)
                 if b.name + "_flex" not in rig.bones:
                     b["flex"] = b.name
                 else:
