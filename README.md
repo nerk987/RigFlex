@@ -2,7 +2,7 @@
 
 V4.00.0 For Blender 4.0 - 
 
-Addon Download : [RigFlex.zip](https://github.com/nerk987/RigFlex/releases/download/v4.00.0/RigFlex_4_00_0.zip) 
+Addon Download : [RigFlex_4_00_0.zip](https://github.com/nerk987/RigFlex/releases/download/v4.00.0/RigFlex_4_00_0.zip) 
 Versions to suit older Blender versions available in the releases
 
 # 1.0 Introduction
