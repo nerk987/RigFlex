@@ -24,8 +24,8 @@
 bl_info = {
     "name": "RigFlex",
     "author": "Ian Huish (nerk)",
-    "version": (0, 3, 4),
-    "blender": (2, 80, 0),
+    "version": (4, 00, 0),
+    "blender": (4, 00, 0),
     "location": "Toolshelf>RigFlex",
     "description": "Quick Soft Body Simulation for Armatures",
     "warning": "",
@@ -54,7 +54,7 @@ class SBSimMainProps(bpy.types.PropertyGroup):
     sbsim_start_frame : IntProperty(name="Simulation Start Frame", default=1)  
     sbsim_end_frame : IntProperty(name="Simulation End Frame", default=250)  
     sbsim_stiffness : FloatProperty(name="Stiffness", default=0.5)  
-    sbsim_bonelayer : IntProperty(name="Bone Layer", default=24)  
+    #sbsim_bonelayer : IntProperty(name="Bone Layer", default=24)  
     
 
 
@@ -101,22 +101,24 @@ class ARMATURE_OT_SBSim_Copy(bpy.types.Operator):
         rig = TargetRig.data
         OrigMode = context.mode
         bpy.ops.object.mode_set(mode='EDIT')
-        print("Pre bone select check3")
+        # print("Pre bone select check3")
         if context.selected_editable_bones is not None:
             for b in context.selected_editable_bones:
                 if b.name[-5:] == "_flex":
                     b.select = False
-                    print("Flex bone selected: ", b.select)
+                    # print("Flex bone selected: ", b.select)
                 if b.name + "_flex" not in rig.bones:
                     b["flex"] = b.name
                 else:
                     b.select = False
-                    print("Check bone select: ", b.select)
+                    # print("Check bone select: ", b.select)
         
         #Duplicate via op
         bpy.ops.armature.duplicate()
 
         #update the names and layer of the duplicated bones
+        if "RigFlex" not in rig.collections:
+            rig.collections.new("RigFlex")
         for b in rig.edit_bones:
             if "flex" in b:
                 if b["flex"] == b.name:
@@ -124,10 +126,14 @@ class ARMATURE_OT_SBSim_Copy(bpy.types.Operator):
                 else:
                     # print("Update Name: ", b["flex"])
                     b.name = b["flex"] + "_flex"
-                    b.layers[pFSM.sbsim_bonelayer] = True
-                    for i in range(31):
-                        b.layers[i] = (i == pFSM.sbsim_bonelayer)
-
+#TODO
+#                    b.layers[pFSM.sbsim_bonelayer] = True
+#                    for i in range(31):
+#                        b.layers[i] = (i == pFSM.sbsim_bonelayer)
+                    #Blender V4.0 Bone Collection update
+                    for bcoll in b.collections:
+                        rig.collections[bcoll.name].unassign(b)
+                    rig.collections["RigFlex"].assign(b)
         #Connect the parents of new bones to each other and set correct layer
         for b in rig.edit_bones:
             if "flex" in b:
@@ -228,7 +234,7 @@ class ARMATURE_OT_SBSim_Unfreeze(bpy.types.Operator):
 class ARMATURE_PT_SBSim(bpy.types.Panel):
     """Creates a Panel in the Object properties window"""
     bl_label = "RigFlex"
-    bl_idname = "armature.sbsim"
+    bl_idname = "ARMATURE_PT_sbsim"
     # bl_space_type = 'PROPERTIES'
     # bl_region_type = 'WINDOW'
     # bl_context = "data"
@@ -261,7 +267,7 @@ class ARMATURE_PT_SBSim(bpy.types.Panel):
         layout.label(text="Initial Setup")
         layout.operator("armature.sbsim_copy")
         layout.prop(scene.SBSimMainProps, "sbsim_stiffness")
-        layout.prop(scene.SBSimMainProps, "sbsim_bonelayer")
+        #layout.prop(scene.SBSimMainProps, "sbsim_bonelayer")
         # box = layout.box()
         layout.label(text="Update")
         layout.operator("armature.sbsim_update")

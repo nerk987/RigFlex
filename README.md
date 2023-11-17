@@ -1,9 +1,9 @@
 # RigFlex - Simple Soft Body for Armatures
 
-V0.3.4 Initial Blender 2.8 - Added initialize and set frame range on first bake
+V4.00.0 For Blender 4.0 - 
 
-Addon Download : [RigFlex.zip](https://github.com/nerk987/RigFlex/releases/download/v0.3.4/RigFlex.zip) 
-2.79 Version Download : [RigFlex.zip](https://github.com/nerk987/RigFlex/releases/download/v0.3.4-2.79/RigFlex.zip) 
+Addon Download : [RigFlex.zip](https://github.com/nerk987/RigFlex/releases/download/v4.00.0/RigFlex_4_00_0.zip) 
+Versions to suit older Blender versions available in the releases
 
 # 1.0 Introduction
 The movement of many animated characters is improved by some sort of soft body simulation. Antennas, clothing, tails, feathers, scales - you name it. Blender has a variety of techniques for this, often using soft body or cloth simulation applied to a lattice or mesh which in turn is applied to the cahracter mesh via modifiers. It's very flexible and powerful, but take some effort to set up.

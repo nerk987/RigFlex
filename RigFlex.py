@@ -290,7 +290,7 @@ class ARMATURE_OT_SBSimulate(bpy.types.Operator):
             modal_rtn = self.ModalMove(context)
             if modal_rtn == 0:
                 context.scene.frame_set(context.scene.SBSimMainProps.sbsim_start_frame)
-                print("Cancelled")
+                # print("Cancelled")
                 wm = context.window_manager
                 wm.progress_end()
                 return {'CANCELLED'}
@@ -396,6 +396,12 @@ class ARMATURE_OT_SBSim_Revert(bpy.types.Operator):
             # print("Delete EditBone: ", b.name)
             if b.name[-5:] == "_flex":
                 TargetRig.data.edit_bones.remove(b)
+                
+        # Remove RigFlex Bone Collection
+        RigFlexCollection = TargetRig.data.collections["RigFlex"]
+#        if len(RigFlexCollection.bones) < 1:
+        TargetRig.data.collections.remove(RigFlexCollection)
+            
                         
             #Return from Edit mode
         bpy.ops.object.mode_set(mode=OrigMode)
